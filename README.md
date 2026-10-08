@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.3.7）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.3.9）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -26,6 +26,13 @@
 - 📒 生词本：阅读中收藏生词
 
 ## 更新日志
+
+### v2.3.9
+- 二人の間→あいだ（之前误标为ま）
+
+### v2.3.8
+- 修行って→おこな误判（行ってみたい必为行く=いって）
+- AI 生词表读音要求原形（眠れる→ねむれる，不能给ねむれた）
 
 ### v2.3.7
 - 人名读音派生：全名读音自动推导名的读音（如結城梨斗→梨斗=りと）
