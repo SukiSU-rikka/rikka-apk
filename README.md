@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.3.9）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.4.0）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -26,6 +26,12 @@
 - 📒 生词本：阅读中收藏生词
 
 ## 更新日志
+
+### v2.4.0
+- 注音算法整改：enrich 加切词预处理（拆分 kuromoji 误粘的助词，如角から）
+- お兄→おにい、角→かど、虎牙→こが
+- 其间/その間→あいだ、他人事→ひとごと、X日间、分计数器（さんぷん/にふん）
+- 31 项常用多读音词系统性扫查全过
 
 ### v2.3.9
 - 二人の間→あいだ（之前误标为ま）
