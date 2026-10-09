@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.6.0）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.6.1）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -26,6 +26,9 @@
 - 📒 生词本：阅读中收藏生词
 
 ## 更新日志
+
+### v2.6.1
+- 注音修复：お兄→おにい（kuromoji 切散后 AI 误判，已加合并规则）、声→こえ（防连浊误用）；下一页后台预解析，翻页不再等
 
 ### v2.6.0
 - 模型选择下拉：按所选服务商过滤（选 DeepSeek 只显示 DeepSeek 模型，选 OpenAI 只显示 GPT）；模型库更新到 2026 年 10 月（GPT-6、DeepSeek V4、Gemini 3.5、Claude 4.8 等）
