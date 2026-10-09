@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.5.4）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.5.5）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -26,6 +26,9 @@
 - 📒 生词本：阅读中收藏生词
 
 ## 更新日志
+
+### v2.5.5
+- 模型选择改为自绘下拉：跟 app 主题走，深色模式不再弹系统白框；全部模型写死在本地，按服务商分组
 
 ### v2.5.4
 - 移除坏掉的"从 API 获取列表"（WebView 跨域限制下无法工作）；保留预设下拉+手动输入
