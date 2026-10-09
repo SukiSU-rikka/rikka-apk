@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.5.0）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.5.1）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -26,6 +26,10 @@
 - 📒 生词本：阅读中收藏生词
 
 ## 更新日志
+
+### v2.5.1
+- 模型名称改为真正的下拉框：点开即选，不用手打；另有"手动输入"可填未来新模型
+- 各服务商默认改为聪明模型（OpenAI→gpt-4.1，DeepSeek→deepseek-chat）
 
 ### v2.5.0
 - AI 语境注音：管线标出多读音疑难词，后台按句子意思自动校对（可在设置开关）
