@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.6.2）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.6.3）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -26,6 +26,9 @@
 - 📒 生词本：阅读中收藏生词
 
 ## 更新日志
+
+### v2.6.3
+- 第四轮注音主动审计：2 个修复（古典「了」系动词→しまう/おわる、逼る→せまる），回归 132/132
 
 ### v2.6.2
 - 第三轮注音主动审计：18 个修复（穴が開いた/目が開いた→あいた、弄る→いじる、明い→あかるい、入替戦→いれかえせん等）
