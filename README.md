@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.7.0）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.6.4）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -30,6 +30,9 @@
 ### v2.7.0
 - 新增在线小说：小説家になろう（排行/搜索/分类/一键导入书架，注音全可用）；原生 HTTP 桥，WebView 不再受 CORS 限制
 
+### v2.6.4
+- 注音优化：大人→おとな、明日→あした、昨日→きのう
+
 ### v2.6.3
 - 第四轮注音主动审计：2 个修复（古典「了」系动词→しまう/おわる、逼る→せまる），回归 132/132
 
@@ -38,6 +41,3 @@
 
 ### v2.6.1
 - 注音修复：お兄→おにい（kuromoji 切散后 AI 误判，已加合并规则）、声→こえ（防连浊误用）；下一页后台预解析，翻页不再等
-
-### v2.6.0
-- 模型选择下拉：按所选服务商过滤（选 DeepSeek 只显示 DeepSeek 模型，选 OpenAI 只显示 GPT）；模型库更新到 2026 年 10 月（GPT-6、DeepSeek V4、Gemini 3.5、Claude 4.8 等）
