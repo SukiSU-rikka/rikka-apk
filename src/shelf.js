@@ -1,0 +1,26 @@
+'use strict';
+window.RikkaShelf=(()=>{
+ let selecting=false,selected=new Set(),restoring=false,longTimer,startPoint,suppressUntil=0,memory={};try{memory=JSON.parse(localStorage.getItem('rikka_bookmarks')||'{}');}catch(e){}
+ function capture(){if(view!=='reader'||!current||restoring)return;const main=$('#main'),top=main.getBoundingClientRect().top,cards=$$('.paragraph-card');const card=cards.find(el=>el.getBoundingClientRect().bottom>top+1)||cards[cards.length-1];if(!card||!card.querySelector('.token'))return;const rect=card.getBoundingClientRect();current.position=Number(card.dataset.index);current.bookmark={paragraph:current.position,ratio:Math.max(-1,Math.min(1,(top-rect.top)/Math.max(1,rect.height))),page,updatedAt:Date.now(),length:current.text.length};memory[current.id]=current.bookmark;try{localStorage.setItem('rikka_bookmarks',JSON.stringify(memory));}catch(e){}updateProgress();}
+ function bookmark(doc){const a=doc.bookmark,b=memory[doc.id];const m=b&&(!a||b.updatedAt>a.updatedAt)?b:a;if(!m||m.length!==doc.text.length||!Number.isInteger(m.paragraph)||m.paragraph<0||m.paragraph>=doc.paragraphs.length)return null;return {...m,ratio:Math.max(-1,Math.min(1,Number(m.ratio)||0))};}
+ function restore(mark){const el=$('#paragraph-'+mark.paragraph),main=$('#main');if(el){const r=el.getBoundingClientRect();main.scrollTop+=r.top-main.getBoundingClientRect().top+mark.ratio*r.height;}}
+ function begin(){restoring=true;document.querySelector('#view-reader').setAttribute('aria-busy','true');}
+ function end(){restoring=false;document.querySelector('#view-reader').setAttribute('aria-busy','false');}
+ function forget(ids){for(const id of ids)delete memory[id];try{localStorage.setItem('rikka_bookmarks',JSON.stringify(memory));}catch(e){}}
+ function render(){document.body.classList.toggle('selecting-books',selecting);$('#book-selection').classList.toggle('hidden',!selecting);$('#manage-books').textContent=selecting?'完成':'管理';$('#selected-count').textContent='已选 '+selected.size+' 篇';$('#delete-selected').disabled=!selected.size;$$('.book-card').forEach(b=>{const on=selected.has(b.dataset.book);b.classList.toggle('selected-book',on);b.setAttribute('aria-label',(selecting?(on?'已选，':'未选，'):'')+(docs.find(d=>d.id===b.dataset.book)?.title||'阅读'));if(selecting)b.setAttribute('aria-pressed',on?'true':'false');else b.removeAttribute('aria-pressed');});}
+ function toggle(id){if(selected.has(id))selected.delete(id);else selected.add(id);render();}
+ function handleClick(id){if(Date.now()<suppressUntil)return true;if(selecting){toggle(id);return true;}return false;}
+ function reset(){selecting=false;selected.clear();render();}
+ function cancelLong(){clearTimeout(longTimer);longTimer=null;}
+ function register(){
+  $('#main').addEventListener('scroll',()=>{if(view!=='reader'||restoring)return;clearTimeout(capture.timer);capture.timer=setTimeout(()=>{capture();safe(savePosition)();},160);},{passive:true});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')safe(savePosition)();});window.persistReadingPosition=()=>safe(savePosition)();
+  $('#manage-books').onclick=()=>{selecting=!selecting;if(!selecting)selected.clear();render();};$('#cancel-selection').onclick=reset;
+  $('#select-all-books').onclick=()=>{const ids=$$('.book-card').map(b=>b.dataset.book),allSelected=ids.every(id=>selected.has(id));for(const id of ids)allSelected?selected.delete(id):selected.add(id);render();};
+  $('#books').addEventListener('pointerdown',e=>{const card=e.target.closest('[data-book]');if(!card||e.button!==0)return;startPoint={x:e.clientX,y:e.clientY};cancelLong();longTimer=setTimeout(()=>{selecting=true;selected.add(card.dataset.book);suppressUntil=Date.now()+650;render();navigator.vibrate?.(30);},520);});
+  $('#books').addEventListener('pointermove',e=>{if(startPoint&&(Math.abs(e.clientX-startPoint.x)>12||Math.abs(e.clientY-startPoint.y)>12))cancelLong();},{passive:true});['pointerup','pointercancel','pointerleave'].forEach(name=>$('#books').addEventListener(name,cancelLong));
+  $('#books').addEventListener('contextmenu',e=>{const card=e.target.closest('[data-book]');if(card){e.preventDefault();cancelLong();selecting=true;selected.add(card.dataset.book);render();}});
+  $('#delete-selected').onclick=()=>{const ids=[...selected],items=docs.filter(d=>selected.has(d.id));if(!ids.length)return;showDialog('删除选中的 '+ids.length+' 篇阅读','<p class="hint">将删除这些文章及其段落解析；已经收藏的生词会保留。</p><ul class="delete-titles">'+items.slice(0,12).map(d=>'<li>'+C.escape(d.title)+'</li>').join('')+'</ul>'+(ids.length>12?'<p class="hint">以及另外 '+(ids.length-12)+' 篇</p>':'')+'<div class="button-row"><button id="confirm-bulk-delete" class="primary">删除 '+ids.length+' 篇</button><button id="cancel-bulk-delete" class="secondary">取消</button></div>');$('#cancel-bulk-delete').onclick=closeDialog;$('#confirm-bulk-delete').onclick=safe(async()=>{if(analysisBusy.size||generationId)throw new Error('请等正在进行的解析或创作结束后再删除');$('#confirm-bulk-delete').disabled=true;await DB.removeMany('documents',ids);docs=docs.filter(d=>!ids.includes(d.id));if(current&&ids.includes(current.id))current=null;forget(ids);closeDialog();selected.clear();selecting=false;renderBooks();toast('已删除 '+ids.length+' 篇阅读');});};
+ }
+ return{capture,bookmark,restore,begin,end,forget,render,handleClick,reset,register};
+})();
