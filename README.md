@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v2.6.4）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v2.6.5）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -27,8 +27,8 @@
 
 ## 更新日志
 
-### v2.7.0
-- 新增在线小说：小説家になろう（排行/搜索/分类/一键导入书架，注音全可用）；原生 HTTP 桥，WebView 不再受 CORS 限制
+### v2.6.5
+- 第五轮注音主动审计：云=言の略字规则（云ふ→いふ、云った→いった等，约760处）、仰云る→おっしゃる、云いわくとして→いわく、云爾→しかいふ等；回归 148/148
 
 ### v2.6.4
 - 注音优化：大人→おとな、明日→あした、昨日→きのう
