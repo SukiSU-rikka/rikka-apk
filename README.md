@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v3.1.5）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v3.1.6）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -27,6 +27,11 @@
 - 📝 JLPT 考试：N5–N1 刷题 / 整卷模考（限时可选）/ AI 出题 / AI 伪真题卷 / 错题本 / 成绩记录 / 听力（设置里打开后显示在底部导航）
 
 ## 更新日志
+
+### v3.1.6
+- 「试卷库」并入「试卷」页：真题、我生成的卷、内置样题同页展示，不再有两个重合入口
+- 「生成新试卷」与「AI 伪真题卷」合并为一个入口；考试子页面返回键先回考试首页（答题中先问保存退出）
+
 
 ### v3.1.5
 - 真题识别新增「手机本地认字」：ML Kit 日文离线 OCR 打包进 App，扫描版 PDF 本地认字，免费不联网（包体 +9MB）
