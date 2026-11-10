@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v3.1.3）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v3.1.4）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -27,6 +27,13 @@
 - 📝 JLPT 考试：N5–N1 刷题 / 整卷模考（限时可选）/ AI 出题 / AI 伪真题卷 / 错题本 / 成绩记录 / 听力（设置里打开后显示在底部导航）
 
 ## 更新日志
+
+### v3.1.4
+- 考试新增「真题文件夹」：选手机上的 JLPT 真题文件夹（只读不复制、授权永久保留），按试卷 PDF＋答案解析 PDF＋听力音频自动配卷
+- 真题听力播原 mp3：连续播放、拖进度条、±5 秒、记住播放位置；AI 识图可把试卷 PDF 转成题目
+- AI 伪真题改按识别出的真题格式出题，N1 默认结构对齐 2026 年 7 月真题
+- 修复设置页点按钮弹 `Cannot read properties of null` 报错
+
 
 ### v3.1.3
 
