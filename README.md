@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v3.1.7）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v3.1.8）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -27,6 +27,11 @@
 - 📝 JLPT 考试：N5–N1 刷题 / 整卷模考（限时可选）/ AI 出题 / AI 伪真题卷 / 错题本 / 成绩记录 / 听力（设置里打开后显示在底部导航）
 
 ## 更新日志
+
+### v3.1.8
+- 真正修复「安装包损坏」：二进制清单里手工加的 android 属性缺资源编号，系统不认（provider 被判缺 authorities 拒装）；已给 5 个属性补齐编号并全量自检
+- 顺带修好后台朗读的前台服务类型声明（此前同样无效）
+
 
 ### v3.1.7
 - 修复 v3.1.5/v3.1.6 部分手机提示「安装包损坏」：内容不变，打包改标准形态（原生库不压缩存储 + 页对齐），同密钥重签
