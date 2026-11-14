@@ -1,0 +1,230 @@
+/* ===== 六花 3.1 · 动态主题 + 新控件样式 =====
+ * 在 theme.css 之后加载，只覆盖外观，不改功能。
+ * 1) 新控件：整段解析折叠按钮、在线找书筛选条、标签云、分类书架
+ * 2) 9 套动态主题：琉璃/琉璃夜（液态玻璃）、猫町（猫娘）、魔法少女、夏空、奶油苏打、夜桜、极光、电波霓虹
+ *    背后的动画层是 .theme-fx（appearance.js 撒粒子），粒子形状和动画全在这里。
+ *    “主题动态效果”关掉时 body.fx-still → 所有动画暂停，画面保留。
+ * 要整体回退：删掉 index.html 里对 themes-plus.css 的引用即可（主题会退回“雪白”）。 */
+
+/* ---------- 1. 新控件 ---------- */
+.lesson-title{flex-wrap:nowrap}
+.lesson-title>div{flex:1;min-width:0}
+.lesson-fold{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--paper);color:var(--muted);display:grid;place-items:center;padding:0;cursor:pointer;transition:background .2s,color .2s,transform .2s}
+.lesson-fold svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.22,.8,.3,1)}
+.lesson-fold:active{transform:scale(.9)}
+.lesson.collapsed .lesson-fold svg{transform:rotate(-90deg)}
+.lesson.collapsed .lesson-fold{color:var(--primary);border-color:color-mix(in srgb,var(--primary) 40%,var(--border))}
+.lesson-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .32s cubic-bezier(.22,.8,.3,1),opacity .25s}
+.lesson-inner{min-height:0;overflow:hidden}
+.lesson.collapsed .lesson-body{grid-template-rows:0fr;opacity:0}
+.lesson.collapsed .lesson-title{margin-bottom:0}
+.lesson.collapsed .lesson-title span{display:none}
+.lesson.collapsed .lesson-title b{font-size:12.5px;color:var(--muted);font-weight:600}
+.lesson.collapsed .ai-button{min-height:28px}
+
+#reader-mode.pre-busy::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);margin-right:6px;vertical-align:middle;animation:pre-pulse 1.1s ease-in-out infinite}
+@keyframes pre-pulse{50%{opacity:.25;transform:scale(.6)}}
+.word-ai-more{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:8px}
+.word-ai-more .spinner{width:14px;height:14px}
+
+.seg-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.online-filters{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin:0 0 10px}
+.online-filters label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.online-filters label>span{font-size:11px;color:var(--muted);font-weight:600;padding-left:4px}
+.online-filters select{width:100%;min-height:38px;padding:0 10px;font-size:13px;border-radius:12px}
+.online-filters label.hidden{display:none}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 12px}
+.tag-cloud.hidden{display:none}
+.tag-chip{border:1px solid var(--border);background:var(--paper);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .18s}
+.tag-chip.active{background:var(--primary);border-color:var(--primary);color:var(--paper)}
+body.dark .tag-chip.active{color:#0F1420}
+.shelf-group{margin:4px 0 16px}
+.shelf-group-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 2px 8px}
+.shelf-group-head b{font-size:14.5px;font-family:var(--serif-zh,serif)}
+.shelf-group-head span{font-size:11.5px;color:var(--muted)}
+.online-item .rank-no,.rank-no{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:6px;margin-right:7px;background:var(--beni);color:#fff!important;font-size:11px;font-weight:800;vertical-align:1px}
+.online-results{display:grid;gap:8px}
+
+.theme-swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:10px}
+.theme-swatch{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;border:1px solid transparent;background:transparent;cursor:pointer}
+.theme-swatch span{width:44px;height:44px;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08),0 4px 12px -6px rgba(0,0,0,.35)}
+.theme-swatch.fx span{background-size:200% 200%!important;animation:swatch-flow 6s ease-in-out infinite}
+.theme-swatch small{font-size:11px;color:var(--ink)}
+.theme-swatch em{position:absolute;top:0;right:4px;font-style:normal;font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:var(--beni);color:#fff;letter-spacing:.02em}
+.theme-swatch.active span{outline:2.5px solid var(--primary);outline-offset:2px}
+@keyframes swatch-flow{50%{background-position:100% 100%}}
+
+/* ---------- 2. 动态层（v3.0.5：整层是一块 canvas，由 fx-engine.js 绘制） ---------- */
+.theme-fx{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;display:block;transition:opacity .6s ease}
+body:not(.fx-theme) .theme-fx{display:none}
+body[data-view="reader"] .theme-fx{opacity:.4}
+body.custom-background .theme-fx{opacity:.55}
+/* 樱花、落叶、细雪：阅读页保留更多一点，才有“花瓣从书页后飘过”的感觉 */
+body.fx-falling .theme-fx{opacity:.95}
+body.fx-falling[data-view="reader"] .theme-fx{opacity:.8}
+body.fx-falling.custom-background .theme-fx{opacity:.85}
+body.fx-falling.custom-background[data-view="reader"] .theme-fx{opacity:.75}
+
+/* ---------- 3. 主题配色 ---------- */
+body[data-theme="glass"]{--bg:#E9EEF8;--paper:#FFFFFF;--ink:#1B2140;--muted:#5D6685;--primary:#4561D8;--primary-hover:#3349B5;--pale:rgba(255,255,255,.55);--border:rgba(255,255,255,.75);--ruby:#5470C9;--beni:#F0568C;--glass:rgba(255,255,255,.42);
+ background:linear-gradient(160deg,#e3ecff,#f6eaff 50%,#e6fbf5)}
+body.dark[data-theme="glassnight"]{--bg:#0E1222;--paper:#1A2036;--ink:#EEF1FF;--muted:#A3ABCF;--primary:#9DB4FF;--primary-hover:#C2D1FF;--pale:rgba(255,255,255,.08);--border:rgba(255,255,255,.16);--ruby:#A6B8F5;--beni:#FF7EB3;--glass:rgba(30,36,64,.42);color-scheme:dark;
+ background:linear-gradient(160deg,#0b0f1f,#1a1236 55%,#071f27)}
+body[data-theme="neko"]{--bg:#FFF4F1;--paper:#FFFCFA;--ink:#4A3036;--muted:#9C7F86;--primary:#E66F8C;--primary-hover:#CF5675;--pale:#FFE3EA;--border:#F6DCE0;--ruby:#C77A8C;--beni:#FF8A5C;--glass:rgba(255,250,248,.78);
+ background:radial-gradient(120% 60% at 0% 0%,#ffe6ee,transparent 60%),radial-gradient(100% 60% at 100% 100%,#fff0dc,transparent 60%),#FFF4F1}
+body[data-theme="mahou"]{--bg:#FCEBFA;--paper:#FFFAFE;--ink:#4A2C5A;--muted:#987AA6;--primary:#C653B8;--primary-hover:#A93C9C;--pale:#F6DDF5;--border:#EFD3EE;--ruby:#9B6CC8;--beni:#FF5FA2;--glass:rgba(255,248,255,.7);
+ background:linear-gradient(165deg,#ffe0f5,#efe3ff 50%,#ddf1ff)}
+body[data-theme="natsuzora"]{--bg:#DDEFFF;--paper:#FFFFFF;--ink:#17324D;--muted:#5D7C99;--primary:#1F7AE0;--primary-hover:#1563BD;--pale:#E3F1FF;--border:#CFE3F6;--ruby:#3C7FC2;--beni:#FF8A3D;--glass:rgba(255,255,255,.66);
+ background:linear-gradient(180deg,#5aa9ff 0%,#9fd0ff 35%,#dff0ff 70%,#f7fbff 100%)}
+body[data-theme="soda"]{--bg:#E8FBF6;--paper:#FFFFFF;--ink:#1F4440;--muted:#5F8A84;--primary:#13A08A;--primary-hover:#0E8572;--pale:#D5F6EE;--border:#C8EDE4;--ruby:#2F8F86;--beni:#F0466B;--glass:rgba(255,255,255,.7);
+ background:linear-gradient(180deg,#bff3e7,#e9fffa 55%,#fff4f6)}
+body[data-theme="hanafubuki"]{--bg:#FFF4F7;--paper:#FFFBFC;--ink:#4A2E3A;--muted:#9A7B88;--primary:#D4618A;--primary-hover:#BC4A74;--pale:#FCE4EC;--border:#F4D9E2;--ruby:#C76E8E;--beni:#E85A7E;--glass:rgba(255,250,252,.78);
+ background:radial-gradient(90% 45% at 88% 0%,#ffdfe9,transparent 70%),radial-gradient(80% 45% at 0% 100%,#fde6ee,transparent 70%),linear-gradient(180deg,#fff7fa,#fff1f5)}
+body[data-theme="momiji"]{--bg:#FBF2E7;--paper:#FFFAF3;--ink:#45302A;--muted:#8E766A;--primary:#BF5230;--primary-hover:#A3421F;--pale:#F8E2D0;--border:#EEDCCB;--ruby:#B5603C;--beni:#D8452B;--glass:rgba(255,248,240,.8);
+ background:radial-gradient(90% 45% at 100% 0%,#fbe0c4,transparent 70%),radial-gradient(80% 40% at 0% 100%,#f6dcc6,transparent 70%),linear-gradient(175deg,#fdf6ec,#f8ead9)}
+body[data-theme="hatsuyuki"]{--bg:#E8EEF5;--paper:#F9FBFD;--ink:#22303F;--muted:#677A8D;--primary:#4677AE;--primary-hover:#355F92;--pale:#DCE6F2;--border:#D3DEEA;--ruby:#5682B3;--beni:#D9677E;--glass:rgba(249,251,253,.78);
+ background:linear-gradient(180deg,#c9d7e8 0%,#dde6f1 40%,#eef2f7 75%,#f6f8fb 100%)}
+body[data-theme="hanafubuki"] .lesson{border-left-color:#f2b8cb}
+body[data-theme="momiji"] .lesson{border-left-color:#e3a57e}
+body[data-theme="hatsuyuki"] .lesson{border-left-color:#b7c9de}
+body.dark[data-theme="yozakura"]{--bg:#141428;--paper:#1E1D36;--ink:#F2E9F2;--muted:#ADA2C2;--primary:#F2A7C3;--primary-hover:#FFC6DB;--pale:#2C2747;--border:#332D52;--ruby:#E7A9C8;--beni:#FF7FA8;--glass:rgba(30,28,54,.72);color-scheme:dark;
+ background:radial-gradient(40vmax 40vmax at 88% 6%,rgba(255,240,215,.20),transparent 60%),linear-gradient(170deg,#121229,#22193b 55%,#3a2147)}
+body.dark[data-theme="kyokkou"]{--bg:#07161D;--paper:#0E222B;--ink:#E3F7F3;--muted:#8FB3AE;--primary:#56E8B5;--primary-hover:#8CF5CF;--pale:#123540;--border:#18404A;--ruby:#7EDCC4;--beni:#C78BFF;--glass:rgba(10,30,38,.7);color-scheme:dark;
+ background:linear-gradient(180deg,#04121a,#071f26 55%,#0d1830)}
+body.dark[data-theme="neon"]{--bg:#0D0221;--paper:#150533;--ink:#F3E9FF;--muted:#A790C9;--primary:#FF2A6D;--primary-hover:#FF5C8F;--pale:#26094F;--border:#3A1470;--ruby:#05D9E8;--beni:#05D9E8;--glass:rgba(21,5,51,.72);color-scheme:dark;
+ background:linear-gradient(180deg,#0d0221,#1b0438 60%,#2a0845)}
+
+/* 深色动态主题：主按钮文字用深色更清楚 */
+body.dark[data-theme="yozakura"] .primary,body.dark[data-theme="kyokkou"] .primary{color:#14121f}
+body.dark[data-theme="neon"] .primary{color:#fff;box-shadow:0 0 0 1px #ff2a6d,0 0 18px rgba(255,42,109,.55)}
+
+/* ---------- 4. 液态玻璃：卡片、导航、弹窗都变成会折光的玻璃 ---------- */
+body[data-theme="glass"],body[data-theme="glassnight"]{--lg-fill:linear-gradient(140deg,rgba(255,255,255,.62),rgba(255,255,255,.22));--lg-edge:rgba(255,255,255,.85);--lg-shadow:0 10px 34px -12px rgba(40,60,140,.35)}
+body[data-theme="glassnight"]{--lg-fill:linear-gradient(140deg,rgba(255,255,255,.14),rgba(255,255,255,.03));--lg-edge:rgba(255,255,255,.22);--lg-shadow:0 14px 40px -14px rgba(0,0,0,.7)}
+body[data-theme^="glass"] .panel,body[data-theme^="glass"] .settings-group,body[data-theme^="glass"] .resume-book,body[data-theme^="glass"] .soft-card,body[data-theme^="glass"] .online-item,body[data-theme^="glass"] .search,body[data-theme^="glass"] #dialog,body[data-theme^="glass"] .ex-card,body[data-theme^="glass"] .study-summary,body[data-theme^="glass"] .word-entry,body[data-theme^="glass"] .review-card{
+ background:var(--lg-fill)!important;border:1px solid var(--lg-edge)!important;-webkit-backdrop-filter:blur(22px) saturate(1.9);backdrop-filter:blur(22px) saturate(1.9);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(255,255,255,.18),inset 1px 0 0 rgba(255,255,255,.35),var(--lg-shadow)!important}
+body[data-theme="glassnight"] .panel,body[data-theme="glassnight"] .settings-group,body[data-theme="glassnight"] .resume-book,body[data-theme="glassnight"] .online-item,body[data-theme="glassnight"] #dialog{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),var(--lg-shadow)!important}
+body[data-theme^="glass"] .bottom-nav,body[data-theme^="glass"] .reader-tools,body[data-theme^="glass"] .voice-player{
+ background:linear-gradient(135deg,rgba(255,255,255,.55),rgba(255,255,255,.18))!important;border:1px solid var(--lg-edge)!important;
+ -webkit-backdrop-filter:blur(26px) saturate(2.1) brightness(1.06);backdrop-filter:blur(26px) saturate(2.1) brightness(1.06);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),inset 0 -6px 14px -8px rgba(255,255,255,.6),0 14px 36px -10px rgba(30,50,130,.38)!important}
+body[data-theme="glassnight"] .bottom-nav,body[data-theme="glassnight"] .reader-tools,body[data-theme="glassnight"] .voice-player{background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.04))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -6px 14px -8px rgba(255,255,255,.12),0 16px 40px -10px rgba(0,0,0,.75)!important}
+/* 选中项：一滴会流动的“水珠” */
+body[data-theme^="glass"] .nav-button.active{background:radial-gradient(120% 120% at 30% 20%,rgba(255,255,255,.9),rgba(255,255,255,.25) 60%)!important;border-radius:18px;box-shadow:inset 0 1px 0 #fff,0 4px 14px -4px rgba(60,90,200,.45)!important}
+body[data-theme="glassnight"] .nav-button.active{background:radial-gradient(120% 120% at 30% 20%,rgba(255,255,255,.28),rgba(255,255,255,.05) 60%)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 4px 14px -4px rgba(0,0,0,.6)!important}
+body[data-theme^="glass"] .nav-button.active::after{display:none}
+body[data-theme^="glass"] .primary{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 88%,#fff),var(--primary));box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 8px 20px -8px color-mix(in srgb,var(--primary) 70%,transparent)}
+body[data-theme^="glass"] .secondary,body[data-theme^="glass"] .filter:not(.active),body[data-theme^="glass"] .tag-chip:not(.active),body[data-theme^="glass"] .text-input,body[data-theme^="glass"] select,body[data-theme^="glass"] textarea,body[data-theme^="glass"] .lesson-fold,body[data-theme^="glass"] .ai-button{background:rgba(255,255,255,.38)!important;border-color:var(--lg-edge)!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+body[data-theme="glassnight"] .secondary,body[data-theme="glassnight"] .filter:not(.active),body[data-theme="glassnight"] .tag-chip:not(.active),body[data-theme="glassnight"] .text-input,body[data-theme="glassnight"] select,body[data-theme="glassnight"] textarea,body[data-theme="glassnight"] .lesson-fold,body[data-theme="glassnight"] .ai-button{background:rgba(255,255,255,.07)!important}
+body[data-theme^="glass"] .reader-top{background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.15));-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8)}
+body[data-theme="glassnight"] .reader-top{background:linear-gradient(180deg,rgba(14,18,34,.65),rgba(14,18,34,.2))}
+body[data-theme^="glass"] .lesson{border-left-color:rgba(255,255,255,.9);background:rgba(255,255,255,.25)!important;border-radius:0 14px 14px 0;padding:10px 12px 10px 14px}
+body[data-theme="glassnight"] .lesson{border-left-color:rgba(255,255,255,.25);background:rgba(255,255,255,.04)!important}
+
+/* ---------- 5. 猫町：猫耳导航、肉球选中、喵式标题 ---------- */
+body[data-theme="neko"] .bottom-nav{border-radius:28px;overflow:visible}
+body[data-theme="neko"] .bottom-nav::before,body[data-theme="neko"] .bottom-nav::after{content:"";position:absolute;top:-19px;width:36px;height:30px;clip-path:polygon(50% 0,100% 100%,0 100%);background:radial-gradient(ellipse 26% 52% at 50% 82%,#ffb6c8 97%,transparent 100%),#FFFAF8;filter:drop-shadow(0 -1px 1.5px rgba(230,111,140,.45))}
+body[data-theme="neko"] .bottom-nav::before{left:20%;transform:rotate(-14deg)}
+body[data-theme="neko"] .bottom-nav::after{right:20%;transform:rotate(14deg)}
+body[data-theme="neko"] .nav-button.active::after{width:11px;height:10px;left:auto;right:calc(50% - 22px);margin-left:0;top:3px;bottom:auto;border-radius:0;transform:rotate(18deg);background:radial-gradient(ellipse 34% 30% at 50% 74%,var(--primary) 96%,transparent 100%),radial-gradient(circle at 16% 38%,var(--primary) 14%,transparent 15%),radial-gradient(circle at 39% 16%,var(--primary) 14%,transparent 15%),radial-gradient(circle at 61% 16%,var(--primary) 14%,transparent 15%),radial-gradient(circle at 84% 38%,var(--primary) 14%,transparent 15%)}
+body[data-theme="neko"] .view>h1::after,body[data-theme="neko"] .shelf-heading h1::after{content:" ฅ^•ω•^ฅ";font-family:var(--sans);font-size:.5em;font-weight:600;color:var(--primary);opacity:.65;letter-spacing:0;vertical-align:middle}
+body[data-theme="neko"] .panel,body[data-theme="neko"] .settings-group,body[data-theme="neko"] .online-item,body[data-theme="neko"] .resume-book{border-radius:24px}
+body[data-theme="neko"] .primary,body[data-theme="neko"] .secondary,body[data-theme="neko"] .filter{border-radius:999px}
+body[data-theme="neko"] .primary{background:linear-gradient(135deg,#ff9fb5,var(--primary));box-shadow:0 6px 16px -6px rgba(230,111,140,.7)}
+body[data-theme="neko"] .japanese .token.selected{background:#ffe0e8;box-shadow:0 0 0 2px #ffe0e8}
+body[data-theme="neko"] .lesson{border-left:3px dotted #f3a6b6}
+
+/* ---------- 6. 魔法少女：闪光按钮、星星分隔 ---------- */
+body[data-theme="mahou"] .primary{background:linear-gradient(120deg,#ff7ac6,#b77bff 45%,#7cc8ff 70%,#ff7ac6);background-size:250% 100%;animation:fx-shine 5s linear infinite;box-shadow:0 8px 22px -8px rgba(198,83,184,.75)}
+body[data-theme="mahou"] .primary{animation-name:fx-shine}
+body.fx-still[data-theme="mahou"] .primary{animation:none}
+@keyframes fx-shine{to{background-position:250% 0}}
+body[data-theme="mahou"] .panel,body[data-theme="mahou"] .settings-group,body[data-theme="mahou"] .resume-book{border:1px solid #f2c8ef;box-shadow:0 0 0 3px rgba(255,255,255,.6),0 12px 30px -16px rgba(150,70,170,.45)}
+body[data-theme="mahou"] .view>h1,body[data-theme="mahou"] .shelf-heading h1{background:linear-gradient(90deg,#c653b8,#7d5bd6 60%,#3f9be0);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-theme="mahou"] .view>h1::after,body[data-theme="mahou"] .shelf-heading h1::after{content:" ✦";color:#ff8bd0;-webkit-text-fill-color:#ff8bd0}
+body[data-theme="mahou"] .nav-button.active::after{width:9px;height:9px;margin-left:-4.5px;border-radius:0;background:#ff5fa2;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)}
+body[data-theme="mahou"] .lesson{border-left:2px solid transparent;border-image:linear-gradient(#ff7ac6,#7cc8ff) 1}
+
+/* ---------- 7. 夏空 / 奶油苏打：明亮清爽 ---------- */
+body[data-theme="natsuzora"] .topbar,body[data-theme="natsuzora"] .shelf-heading h1,body[data-theme="natsuzora"] #view-library>.shelf-heading .hint{color:#fff;text-shadow:0 1px 8px rgba(20,70,140,.35)}
+body[data-theme="natsuzora"] .view>h1{color:#fff;text-shadow:0 2px 12px rgba(20,70,140,.4)}
+body[data-theme="natsuzora"] .view>.page-description{color:#f2f8ff;text-shadow:0 1px 6px rgba(20,70,140,.35)}
+body[data-theme="natsuzora"] .primary{background:linear-gradient(135deg,#3a95ff,#1f6fe0);box-shadow:0 8px 20px -8px rgba(31,122,224,.7)}
+body[data-theme="natsuzora"] .nav-button.active::after{background:#ffb13d;box-shadow:0 0 8px #ffb13d}
+body[data-theme="soda"] .primary{background:linear-gradient(135deg,#3fd1b7,#13a08a);box-shadow:0 8px 20px -8px rgba(19,160,138,.7)}
+body[data-theme="soda"] .nav-button.active::after{width:7px;height:7px;margin-left:-3.5px;background:#f0466b;box-shadow:0 0 0 2px #fff,0 0 0 3px #f0466b}
+body[data-theme="soda"] .panel,body[data-theme="soda"] .settings-group,body[data-theme="soda"] .online-item,body[data-theme="soda"] .resume-book{border-radius:22px}
+body[data-theme="soda"] .view>h1::after,body[data-theme="soda"] .shelf-heading h1::after{content:" 🍒";font-size:.6em}
+
+/* ---------- 8. 夜桜 / 极光 / 霓虹：夜色 ---------- */
+body[data-theme="yozakura"] .view>h1,body[data-theme="yozakura"] .shelf-heading h1{text-shadow:0 0 18px rgba(242,167,195,.45)}
+body[data-theme="yozakura"] .nav-button.active::after{width:9px;height:8px;margin-left:-4.5px;border-radius:100% 0 100% 0;background:#f2a7c3}
+body[data-theme="kyokkou"] .view>h1,body[data-theme="kyokkou"] .shelf-heading h1{background:linear-gradient(90deg,#56e8b5,#7fd8ff 50%,#c78bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-theme="kyokkou"] .nav-button.active::after{background:#56e8b5;box-shadow:0 0 10px #56e8b5}
+body[data-theme="neon"] .view>h1,body[data-theme="neon"] .shelf-heading h1{color:#fff;text-shadow:0 0 6px #ff2a6d,0 0 18px #ff2a6d,0 0 36px rgba(255,42,109,.6)}
+body[data-theme="neon"] .panel,body[data-theme="neon"] .settings-group,body[data-theme="neon"] .online-item,body[data-theme="neon"] .resume-book,body[data-theme="neon"] #dialog{border:1px solid rgba(5,217,232,.45)!important;box-shadow:0 0 0 1px rgba(255,42,109,.15),0 0 22px -6px rgba(5,217,232,.45)!important}
+body[data-theme="neon"] .bottom-nav,body[data-theme="neon"] .reader-tools{border-color:rgba(255,42,109,.55)!important;box-shadow:0 0 24px -4px rgba(255,42,109,.6)!important}
+body[data-theme="neon"] .nav-button.active{color:#05d9e8;text-shadow:0 0 8px #05d9e8}
+body[data-theme="neon"] .nav-button.active::after{background:#ff2a6d;box-shadow:0 0 10px #ff2a6d}
+body[data-theme="neon"] .filter.active,body[data-theme="neon"] .tag-chip.active{background:#05d9e8;border-color:#05d9e8;color:#0d0221}
+body[data-theme="neon"] .japanese rt{text-shadow:0 0 6px rgba(5,217,232,.55)}
+
+/* 动态主题下：阅读正文保持最高可读性，背景的“热闹”都压在正文后面 */
+body.fx-theme[data-view="reader"] #reader-content .japanese{text-shadow:0 0 1px var(--bg)}
+body.fx-theme:not(.dark)[data-view="reader"] #reader-content .japanese{text-shadow:0 1px 0 rgba(255,255,255,.6)}
+/* v3.0.5 词汇与语法单独折叠（翻译保留） */
+.lesson-tabs{align-items:center}
+.detail-fold{margin-left:auto;display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--muted);padding:5px 2px 5px 8px!important;border-bottom:2px solid transparent!important;background:none;cursor:pointer}
+.detail-fold svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.22,.8,.3,1)}
+.detail-fold:active{opacity:.6}
+.detail-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .32s cubic-bezier(.22,.8,.3,1),opacity .25s}
+.detail-inner{min-height:0;overflow:hidden}
+.lesson-detail.folded .detail-body{grid-template-rows:0fr;opacity:0}
+.lesson-detail.folded .detail-fold{color:var(--primary)}
+.lesson-detail.folded .detail-fold svg{transform:rotate(-90deg)}
+.lesson-detail.folded .lesson-tabs{margin-bottom:0}
+.lesson-detail.folded .lesson-tabs [data-tab].active{color:var(--muted);border-color:transparent}
+@media (prefers-reduced-motion:reduce){.detail-body,.detail-fold svg{transition:none}}
+/* v3.0.5 设置页：未保存草稿提示 */
+.draft-note{color:var(--primary);background:color-mix(in srgb,var(--primary) 9%,transparent);border-radius:8px;padding:7px 10px;margin:12px 0 0}
+.theme-panel .theme-swatches{margin-top:10px}
+
+/* v3.0.5 少女 / 梦幻系主题 */
+body[data-theme="ichigo"]{--bg:#FFF2F5;--paper:#FFFBFC;--ink:#55303F;--muted:#A07A8A;--primary:#EC5B8F;--primary-hover:#D44579;--pale:#FFE1EA;--border:#F8D7E1;--ruby:#E06A95;--beni:#FF5A88;--glass:rgba(255,250,252,.8);
+ background:radial-gradient(110% 50% at 100% 0%,#ffd9e6,transparent 65%),radial-gradient(90% 45% at 0% 100%,#ffe6ee,transparent 65%),linear-gradient(180deg,#fff6f8,#fff0f4)}
+body[data-theme="ichigo"] .primary{background:linear-gradient(135deg,#ff9cc0,var(--primary));border-radius:999px;box-shadow:0 6px 16px -6px rgba(236,91,143,.7)}
+body[data-theme="ichigo"] .secondary,body[data-theme="ichigo"] .filter{border-radius:999px}
+body[data-theme="ichigo"] .view>h1::after,body[data-theme="ichigo"] .shelf-heading h1::after{content:" ♡";color:#ff7aa8;font-size:.6em;vertical-align:middle}
+body[data-theme="ichigo"] .lesson{border-left:3px solid #ffc2d6}
+body[data-theme="wataame"]{--bg:#F6F0FF;--paper:#FFFCFF;--ink:#3F3560;--muted:#8D84AE;--primary:#8C72E0;--primary-hover:#7559CC;--pale:#ECE4FF;--border:#E3DAF6;--ruby:#8C77D6;--beni:#F27BAE;--glass:rgba(255,252,255,.8);
+ background:linear-gradient(170deg,#ffe6f2 0%,#efe6ff 45%,#dfeeff 100%)}
+body[data-theme="wataame"] .primary{background:linear-gradient(135deg,#f6a7cf,#a993f0 55%,#8fb8f5);border-radius:999px;box-shadow:0 6px 18px -8px rgba(140,114,224,.7)}
+body[data-theme="wataame"] .panel,body[data-theme="wataame"] .settings-group,body[data-theme="wataame"] .resume-book{border-radius:24px}
+body[data-theme="wataame"] .lesson{border-left:3px solid #d9ccff}
+body[data-theme="yumekawa"]{--bg:#F5EEFF;--paper:#FFFCFF;--ink:#4A3866;--muted:#9586B0;--primary:#A35FD6;--primary-hover:#8B48BF;--pale:#F0E3FF;--border:#E7DAF7;--ruby:#9C6FD0;--beni:#FF6FB5;--glass:rgba(255,252,255,.78);
+ background:linear-gradient(140deg,#ffe0f1 0%,#efe2ff 35%,#dff4ff 70%,#e6fff2 100%)}
+body[data-theme="yumekawa"] .primary{background:linear-gradient(120deg,#ff9fd2,#c39bff 45%,#8fd9ff 75%,#a6f5cf);background-size:200% 100%;border-radius:999px;box-shadow:0 8px 20px -8px rgba(163,95,214,.6)}
+body[data-theme="yumekawa"] .view>h1,body[data-theme="yumekawa"] .shelf-heading h1{background:linear-gradient(90deg,#d96bb5,#9a6ee0 55%,#4fa7d9);-webkit-background-clip:text;background-clip:text;color:transparent}
+body[data-theme="yumekawa"] .lesson{border-left:2px solid transparent;border-image:linear-gradient(#ffa6d6,#b9a2ff,#8fd9ff) 1}
+body.dark[data-theme="hoshifuru"]{--bg:#121433;--paper:#1B1D44;--ink:#EEEAFF;--muted:#A8A3CF;--primary:#B9A7FF;--primary-hover:#D3C8FF;--pale:#272A5A;--border:#2F3266;--ruby:#C2B3FF;--beni:#FF9BD0;--glass:rgba(27,29,68,.72);color-scheme:dark;
+ background:radial-gradient(70vmax 50vmax at 85% 0%,rgba(120,90,200,.35),transparent 60%),linear-gradient(175deg,#0c0e2a,#1a1a48 55%,#2e2160)}
+body.dark[data-theme="hoshifuru"] .primary{color:#15123a}
+body[data-theme="hoshifuru"] .lesson{border-left-color:rgba(185,167,255,.45)}
+/* v3.0.6 AI 用量表 */
+.usage-panel{margin-top:16px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--paper) 70%,transparent)}
+.usage-panel .field-label{margin:0}
+#ai-usage>b{display:block;font-size:12px;margin:10px 0 4px}
+.usage-table{width:100%;border-collapse:collapse;font-size:11px}
+.usage-table th{color:var(--muted);font-weight:500;text-align:left;padding:3px 4px;border-bottom:1px solid var(--border)}
+.usage-table td{padding:4px;border-bottom:1px dashed var(--border)}
+.usage-table small{color:var(--muted);font-size:9.5px}
+/* v3.0.6 手动纠正读音 */
+.dialog-links{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.fix-reading{margin-top:10px;padding:12px;border:1px dashed var(--border);border-radius:12px}
+.fix-reading .field-label{margin-top:0}
+/* v3.0.6 找日文原作 */
+.finder-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}.finder-row .search{flex:1;min-width:0}.finder-row .primary{flex:0 0 auto;min-height:40px}
+.finder-card{border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin:10px 0;background:var(--paper)}
+.finder-card b{font-size:15px}.finder-card .finder-meta{font-size:11px;color:var(--muted);margin:3px 0 6px}
+.finder-card .button-row{margin-top:8px}.finder-card .chip{margin-left:6px}

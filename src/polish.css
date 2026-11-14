@@ -1,0 +1,113 @@
+/* 六花日语 · 界面润色（叠加在 style.css 之后加载，只改形状、间距、动效，不改主题配色）
+   颜色全部取自 currentColor / var(--primary) 的半透明混合，16 套主题（含深色）通用。
+   要整体回退：删掉 index.html 里对 polish.css 的引用即可。 */
+
+:root{
+  --r-card:18px; --r-ctl:14px; --r-chip:999px;
+  --line:color-mix(in srgb,currentColor 10%,transparent);
+  --shadow-1:0 1px 2px rgba(30,20,60,.05),0 10px 26px -14px rgba(60,40,110,.28);
+  --ease:cubic-bezier(.22,.8,.3,1);
+}
+html{-webkit-tap-highlight-color:transparent;scroll-behavior:smooth;text-rendering:optimizeLegibility}
+body{font-family:"Noto Sans CJK SC","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+/* 卡片：统一圆角、细描边、柔和阴影 */
+.panel,.soft-card,.paragraph-card,.settings-group,.study-summary,.online-panel,.input-panel,.icon-panel,.background-panel{
+  border-radius:var(--r-card);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow-1);
+}
+.paragraph-card{padding-block:clamp(14px,3.2vw,22px);margin-block:12px;transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.paragraph-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:.78rem;letter-spacing:.08em;opacity:.72}
+.paragraph-head button{border-radius:50%;min-width:36px;min-height:36px}
+
+/* 阅读区：给注音留足行距，避免假名压到上一行 */
+.japanese{line-height:2.45;letter-spacing:.02em;word-break:normal;overflow-wrap:anywhere;line-break:strict}
+.japanese ruby{ruby-position:over;ruby-align:center}
+.japanese rt{font-size:.5em;line-height:1;font-weight:500;letter-spacing:.03em;opacity:.82;user-select:none;-webkit-user-select:none}
+.token{border-radius:6px;transition:background-color .15s var(--ease),box-shadow .15s var(--ease);cursor:pointer}
+.token:hover{background:color-mix(in srgb,var(--primary,#7760ae) 12%,transparent)}
+.token:active{background:color-mix(in srgb,var(--primary,#7760ae) 22%,transparent)}
+.token:focus-visible{outline:2px solid var(--primary,#7760ae);outline-offset:2px}
+.token.uncertain rt,ruby.uncertain rt{text-decoration:underline dotted;text-underline-offset:2px;opacity:1}
+.lesson{border-radius:calc(var(--r-card) - 4px)}
+
+/* 按钮：统一圆角、按压反馈 */
+button.primary,button.secondary,button.text-button,.icon-button,.chip,.filter{transition:transform .12s var(--ease),filter .15s,background-color .15s,box-shadow .15s}
+button.primary,button.secondary{border-radius:var(--r-ctl);min-height:44px;font-weight:600;letter-spacing:.02em}
+button.primary{box-shadow:0 6px 16px -8px color-mix(in srgb,var(--primary,#7760ae) 70%,transparent)}
+button.primary:active,button.secondary:active,.icon-button:active{transform:scale(.97)}
+button.primary:disabled,button.secondary:disabled{opacity:.5;box-shadow:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--primary,#7760ae);outline-offset:2px}
+.chip,.filter,.otab{border-radius:var(--r-chip)}
+
+/* 输入框 */
+input[type=text],input[type=search],input[type=number],input[type=password],input[type=url],select,textarea,.text-input{
+  border-radius:var(--r-ctl);
+  border:1px solid var(--line);
+  transition:border-color .15s,box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--primary,#7760ae);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary,#7760ae) 20%,transparent)}
+
+/* 顶栏与底部导航：毛玻璃，边界更轻 */
+.topbar,.reader-top{backdrop-filter:saturate(1.3) blur(14px);-webkit-backdrop-filter:saturate(1.3) blur(14px)}
+.bottom-nav{backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-top:1px solid var(--line)}
+.bottom-nav button{transition:transform .15s var(--ease),opacity .15s;min-height:48px}
+.bottom-nav button.active{font-weight:700}
+.bottom-nav button:active{transform:scale(.94)}
+
+/* 书架 */
+.book-grid{gap:clamp(10px,3vw,16px)}
+.book-grid>*{border-radius:var(--r-card);transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+.book-grid>*:active{transform:scale(.98)}
+.pagination{gap:10px;align-items:center}
+
+/* 进度条、对话框、提示 */
+.progress{border-radius:var(--r-chip);overflow:hidden}
+dialog,.dialog,#dialog{border-radius:calc(var(--r-card) + 4px);border:1px solid var(--line);box-shadow:0 24px 60px -20px rgba(30,20,60,.45)}
+#toast{border-radius:var(--r-ctl);box-shadow:var(--shadow-1)}
+
+/* 小屏与减少动效 */
+@media (max-width:480px){
+  .paragraph-card{margin-inline:-2px}
+  .japanese{line-height:2.55}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}
+}
+/* v3.0.3 点词即时 AI 解析 */
+.word-ai{margin:14px 0 4px;padding:14px 16px;border-radius:14px;background:var(--pale);border:1px solid color-mix(in srgb,var(--primary) 14%,transparent)}
+.word-ai-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+.word-ai-head span{font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--primary)}
+.word-ai-head small{font-size:10px;color:var(--muted)}
+.word-ai-meaning{font-size:15px;line-height:1.85;color:var(--ink)}
+.word-ai-row{font-size:12px;line-height:1.85;color:var(--muted);margin-top:6px}
+.word-ai-row b{font-weight:600;color:var(--primary);margin-right:8px;font-size:11px}
+.word-ai .grammar-example{margin-top:10px}
+.word-ai .text-button.small{margin-top:4px;padding:4px 0}
+.word-ai-loading{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.word-dict-tag{display:inline-block;font-size:9px;color:var(--primary);border:1px solid var(--border);border-radius:4px;padding:0 5px;margin-right:7px;vertical-align:2px}
+#dialog-add-word[disabled]{opacity:.55}
+
+/* ===== 朗读：逐词高亮（v3.4.0，样式与颜色可在设置里改）===== */
+body{--vh:var(--primary)}
+.japanese .token{transition:background-color .1s ease,color .1s ease,box-shadow .1s ease}
+body[data-vh-read="1"] .japanese .token.voice-read{color:color-mix(in srgb,var(--vh) 58%,var(--ink))}
+body[data-vh-read="1"] .japanese .token.voice-read rt{color:color-mix(in srgb,var(--vh) 70%,var(--muted))}
+.japanese .token.voice-now,body[data-vh="block"] .japanese .token.voice-now{color:var(--vh);background:color-mix(in srgb,var(--vh) 17%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--vh) 17%,transparent);border-radius:5px}
+body[data-vh="marker"] .japanese .token.voice-now{color:var(--ink);background:linear-gradient(transparent 58%,color-mix(in srgb,var(--vh) 42%,transparent) 58%);box-shadow:none;border-radius:2px}
+body[data-vh="underline"] .japanese .token.voice-now{color:var(--vh);background:none;box-shadow:none;text-decoration:underline 3px var(--vh);text-underline-offset:7px}
+body[data-vh="text"] .japanese .token.voice-now{color:var(--vh);background:none;box-shadow:none;font-weight:700}
+.japanese .token.voice-now rt{color:var(--vh);font-weight:600}
+.paragraph-card.speaking{outline:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--vh) 35%,transparent)}
+
+/* ===== 朗读控制条：紧凑胶囊，不挡正文（v3.2.1）=====
+   之前 style.css 的 top:0（sticky）和 theme.css 的 bottom（fixed）同时生效，
+   把控制条从屏幕顶部一直撑到底部，变成整屏空白。这里统一成只贴底部的一条。 */
+#voice-player.voice-player{top:auto!important;height:auto!important;max-height:64px;margin:0;display:flex;align-items:center;gap:10px;padding:7px 8px 7px 16px;left:16px;right:16px;bottom:calc(84px + var(--system-bottom,0px));border-radius:999px}
+#voice-player.hidden{display:none!important}
+#voice-player>span{flex:1;min-width:0;font-size:12px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#voice-player>div{flex:0 0 auto;display:flex;gap:2px}
+#voice-player button{font-size:12px;padding:7px 9px;border-radius:999px;min-height:34px;white-space:nowrap}
+#voice-player button:active{background:var(--pale)}
+#voice-player button:disabled{opacity:.35}

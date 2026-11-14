@@ -15,7 +15,7 @@ window.RikkaImages=(()=>{
   }
   async function render(){
     let selected=settings.launcherIcon||'portrait';if(window.Android?.selectedIcon)selected=Android.selectedIcon();$$('[data-icon-preset]').forEach(x=>{x.classList.toggle('active',x.dataset.iconPreset===selected);x.setAttribute('aria-pressed',x.dataset.iconPreset===selected?'true':'false');});
-    const custom=await DB.get('meta','custom-icon');$('#custom-icon-preview').src=custom?.data||'icons/rikka.jpg';$('#reuse-custom-icon').disabled=!custom?.data;
+    const custom=await DB.get('meta','custom-icon');$('#custom-icon-preview').src=custom?.data||'icons/rikka-mark.png';$('#reuse-custom-icon').disabled=!custom?.data;
   }
   function register(){
     $('#icon-input').onchange=safe(async e=>{try{if(e.target.files[0]){busy('正在适配图标图片…');await selectIcon(await process(e.target.files[0],1280));}}finally{e.target.value='';unbusy();}});

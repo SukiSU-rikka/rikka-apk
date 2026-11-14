@@ -1,136 +1,176 @@
 'use strict';
-/* なろう小説 API 集成：搜索、排行、详情、导入（JSONP 绕过 WebView CORS） */
+// 小説家になろう 接入（v3.0.2）
+// 安装包的 WebView 会拦掉所有外部请求（shouldInterceptRequest 对非本地资源一律返回 403），
+// 所以 JSONP、直连 fetch、公共代理在这个壳里全都不可能成功。
+// 唯一通道：原生桥 Android.httpGet(id, url)，结果回调 window.__rikkaHttp(id, body, err)。
+// 书单/搜索/排行走官方 API（out=json），目录/正文抓 ncode.syosetu.com 网页。
+// 正文里作者标的 ruby 原样保留，作为“原文注音”覆盖自动注音。
 window.Narou = (() => {
 const API = 'https://api.syosetu.com/novelapi/api/';
+const SITE = 'https://ncode.syosetu.com/';
+const OF = 't-n-w-s-bg-g-k-nt-e-ga-l-ti-gl-nu';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hasNative = () => !!(window.Android && typeof Android.httpGet === 'function');
+const NO_BRIDGE = '安装包缺少なろう网络通道（Android.httpGet），需要用 v3.0.2 的原生补丁重新打包';
 
-const GENRES = {
-'': '全部', '101': '异世界恋爱', '102': '现实恋爱',
-'201': '高幻想', '202': '低幻想',
-'301': '纯文学', '302': '人情剧', '303': '历史', '304': '推理',
-'305': '恐怖', '306': '动作', '307': '喜剧',
-'401': 'VR游戏', '402': '宇宙', '403': '空想科学', '404': '惊悚',
-};
-
-let cbCounter = 0;
-// JSONP 请求：通过 <script> 标签绕过 CORS
-function jsonp(params, timeout = 20000) {
-return new Promise((resolve, reject) => {
-const cbName = '_narou_cb_' + (++cbCounter) + '_' + Date.now();
-const q = new URLSearchParams({ out: 'jsonp', callback: cbName,...params});
-const script = document.createElement('script');
-const timer = setTimeout(() => {
-cleanup();
-reject(new Error('请求超时（20秒）'));
-}, timeout);
-function cleanup() {
-clearTimeout(timer);
-if (script.parentNode) script.parentNode.removeChild(script);
-delete window[cbName];
+const pending = new Map(); let hid = 0;
+window.__rikkaHttp = (id, body, err) => { const p = pending.get(id); if (!p) return; pending.delete(id); clearTimeout(p.t); if (err) p.reject(new Error(err)); else p.resolve(body); };
+function nativeGet(url) {
+ return new Promise((resolve, reject) => {
+  if (!hasNative()) { reject(new Error(NO_BRIDGE)); return; }
+  const id = 'n' + (++hid);
+  const t = setTimeout(() => { pending.delete(id); reject(new Error('请求超时')); }, 30000);
+  pending.set(id, { resolve, reject, t });
+  try { Android.httpGet(id, url); } catch (e) { pending.delete(id); clearTimeout(t); reject(e); }
+ });
 }
-window[cbName] = (data) => {
-cleanup();
-resolve(data);
-};
-script.onerror = () => {
-cleanup();
-reject(new Error('网络请求失败'));
-};
-script.src = API + '?' + q.toString();
-document.head.appendChild(script);
-});
+// 失败自动重试一次（なろう偶尔 5xx / 超时）
+async function getText(url) {
+ try { return await nativeGet(url); }
+ catch (e) {
+  if (!hasNative() || /不允许|HTTP 4\d\d/.test(e.message)) throw e;
+  await sleep(800);
+  return nativeGet(url);
+ }
 }
-
+function shape(data) {
+ if (!Array.isArray(data)) throw new Error('API 返回格式异常');
+ return { allcount: (data[0] && data[0].allcount) || 0, list: data.slice(1) };
+}
 async function api(params) {
-const data = await jsonp(params);
-const allcount = data[0]?.allcount || 0;
-return { allcount, list: data.slice(1)};
+ const q = new URLSearchParams(Object.assign({ out: 'json', of: OF }, params));
+ const t = await getText(API + '?' + q.toString());
+ let data; try { data = JSON.parse(t); } catch (e) { throw new Error('API 返回的不是 JSON'); }
+ return shape(data);
 }
 
-async function ranking(order = 'dailypoint', lim = 20, genre = '') {
-const p = { order, lim, of: 't-n-w-s-k-g-l-e-ti'};
-if (genre) p.genre = genre;
-return api(p);
+async function ranking(order, lim, genre) {
+ const p = { order: order || 'dailypoint', lim: lim || 20 };
+ if (genre) p.genre = genre;
+ return api(p);
 }
-
-async function search(word, genre = '', order = 'hyoka', lim = 20) {
-const p = { word, lim, order, of: 't-n-w-s-k-g-l-e-ti', title: 1, ex: 1};
-if (genre) p.genre = genre;
-return api(p);
+async function search(word, genre, order, lim) {
+ const p = { word: word, lim: lim || 20, order: order || 'hyoka', title: 1, ex: 1, wname: 1 };
+ if (genre) p.genre = genre;
+ return api(p);
 }
-
 async function getDetail(ncode) {
-const { list} = await api({ ncode, lim: 1, of: 't-n-w-s-k-g-l-e-ti'});
-return list[0] || null;
+ const r = await api({ ncode: String(ncode).toLowerCase(), lim: 1 });
+ return r.list[0] || null;
 }
 
-// 章节列表：用 JSONP 无法抓 HTML，改用 fetch（ncode.syosetu.com 可能允许 CORS）
-// 如果不行，提示用户用 Novelty 或浏览器打开
-async function getChapters(ncode) {
-// 先试 API 方式获取话数信息
-const detail = await getDetail(ncode);
-const url = `https://ncode.syosetu.com/${ncode}/`;
-try {
-const r = await fetch(url, { mode: 'cors'});
-if (!r.ok) throw new Error('HTTP ' + r.status);
-const html = await r.text();
-const chapters = [];
-const re = /<a href="(\/n\d+[a-z]+\/\d+\/)">([^<]+)<\/a>/g;
-let m;
-while ((m = re.exec(html))!== null) {
-chapters.push({ url: 'https://ncode.syosetu.com' + m[1], title: m[2].trim()});
-}
-if (chapters.length) return chapters;
-} catch (e) {
-console.warn('目录抓取失败:', e.message);
-}
-// 降级：用 general_all_no（总话数）构造章节 URL
-// ncode.syosetu.com/{ncode}/{i}/ 格式
-const total = detail?.general_all_no || 1;
-const chapters = [];
-for (let i = 1; i <= total; i++) {
-chapters.push({ url: `${url}${i}/`, title: `第${i}话`});
-}
-return chapters;
+const parse = html => new DOMParser().parseFromString(html, 'text/html');
+const clean = s => String(s || '').replace(/\s+/g, ' ').trim();
+
+// ---- 目录（新版页面每页 100 话，?p=2 翻页）----
+async function getChapters(ncode, detail, onPage) {
+ ncode = String(ncode).toLowerCase();
+ detail = detail || await getDetail(ncode);
+ if (detail && Number(detail.noveltype) === 2) return [{ no: 1, url: SITE + ncode + '/', title: detail.title, chapter: '', short: true }];
+ const out = []; let chapter = '';
+ for (let p = 1; p <= 300; p++) {
+  if (onPage) onPage(p);
+  const doc = parse(await getText(SITE + ncode + '/' + (p > 1 ? '?p=' + p : '')));
+  const nodes = doc.querySelectorAll('.p-eplist__chapter-title, .p-eplist__sublist');
+  if (!nodes.length) {
+   // 旧版页面结构
+   doc.querySelectorAll('.index_box .chapter_title, .index_box dl.novel_sublist2').forEach(el => {
+    if (el.classList.contains('chapter_title')) { chapter = clean(el.textContent); return; }
+    const a = el.querySelector('a'); const m = a && (a.getAttribute('href') || '').match(/\/(\d+)\/?$/);
+    if (m) out.push({ no: +m[1], url: SITE + ncode + '/' + m[1] + '/', title: clean(a.textContent), chapter });
+   });
+   if (!out.length && p === 1 && doc.querySelector('.p-novel__body, #novel_honbun')) {
+    return [{ no: 1, url: SITE + ncode + '/', title: detail ? detail.title : ncode, chapter: '', short: true }];
+   }
+   break;
+  }
+  nodes.forEach(el => {
+   if (el.classList.contains('p-eplist__chapter-title')) { chapter = clean(el.textContent); return; }
+   const a = el.querySelector('a.p-eplist__subtitle') || el.querySelector('a');
+   const m = a && (a.getAttribute('href') || '').match(/\/(\d+)\/?(?:[?#].*)?$/);
+   if (m) out.push({ no: +m[1], url: SITE + ncode + '/' + m[1] + '/', title: clean(a.textContent), chapter });
+  });
+  if (!doc.querySelector('a.c-pager__item--next')) break;
+  await sleep(350);
+ }
+ if (!out.length && detail && detail.general_all_no) {
+  for (let i = 1; i <= detail.general_all_no; i++) out.push({ no: i, url: SITE + ncode + '/' + i + '/', title: '第' + i + '话', chapter: '' });
+ }
+ return out;
 }
 
+// ---- 正文：保留段落与作者 ruby ----
+function walk(node, b) {
+ for (const n of node.childNodes) {
+  if (n.nodeType === 3) { b.text(n.nodeValue.replace(/[\r\n]+/g, '')); continue; }
+  if (n.nodeType !== 1) continue;
+  const tag = n.tagName;
+  if (tag === 'RUBY') {
+   let base = '', rt = '';
+   for (const c of n.childNodes) {
+    if (c.nodeType === 3) base += c.nodeValue;
+    else if (c.tagName === 'RT') rt += c.textContent;
+    else if (c.tagName === 'RP') continue;
+    else base += c.textContent;
+   }
+   b.ruby(base, rt); continue;
+  }
+  if (tag === 'BR') { b.text('\n'); continue; }
+  if (tag === 'RT' || tag === 'RP' || tag === 'SCRIPT' || tag === 'STYLE') continue;
+  if (tag === 'IMG') { b.text('［挿絵］'); continue; }
+  walk(n, b);
+ }
+}
+function bodiesOf(doc) {
+ let els = [...doc.querySelectorAll('.p-novel__body .p-novel__text')].filter(el => !el.classList.contains('p-novel__text--preface') && !el.classList.contains('p-novel__text--afterword'));
+ if (!els.length) { const old = doc.querySelector('#novel_honbun'); if (old) els = [old]; }
+ return els;
+}
+function appendBody(doc, b) {
+ const els = bodiesOf(doc);
+ if (!els.length) throw new Error('正文解析失败（页面结构可能变了）');
+ for (const el of els) {
+  const ps = el.querySelectorAll(':scope > p');
+  if (ps.length) ps.forEach(p => { walk(p, b); b.text('\n'); });
+  else { walk(el, b); b.text('\n'); }
+ }
+}
 async function getChapterText(url) {
-const r = await fetch(url, { mode: 'cors'});
-if (!r.ok) throw new Error('获取正文失败: ' + r.status);
-const html = await r.text();
-let m = html.match(/<div class="p-novel__body">([\s\S]*?)<\/div>\s*<\/div>/)
-|| html.match(/<div id="novel_honbun"[^>]*>([\s\S]*?)<\/div>/);
-if (!m) throw new Error('正文解析失败');
-let body = m[1];
-body = body.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n');
-const tmp = document.createElement('div');
-tmp.innerHTML = body;
-return (tmp.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+ const b = new RikkaSourceRuby.Builder();
+ appendBody(parse(await getText(url)), b);
+ const r = b.done();
+ return { text: r.text.replace(/\n{3,}/g, '\n\n').trim(), ruby: r.ruby };
 }
 
-async function importNovel(ncode, onProgress) {
-const detail = await getDetail(ncode);
-if (!detail) throw new Error('小说不存在');
-const chapters = await getChapters(ncode);
-const parts = [];
-for (let i = 0; i < chapters.length; i++) {
-onProgress?.(i + 1, chapters.length, chapters[i].title);
-try {
-const text = await getChapterText(chapters[i].url);
-parts.push(`\n\n${text}`);
-} catch (e) {
-parts.push(`\n\n（本章获取失败：${e.message}）`);
-}
-await new Promise(r => setTimeout(r, 500));
-}
-return {
-title: detail.title,
-author: detail.writer,
-desc: detail.story || '',
-text: parts.join('\n\n'),
-source: 'なろう',
-ncode,
-};
+// opts: {detail, chapters, from, to}
+async function importNovel(ncode, opts, onProgress) {
+ if (typeof opts === 'function') { onProgress = opts; opts = {}; }
+ opts = opts || {};
+ const detail = opts.detail && opts.detail.title ? opts.detail : await getDetail(ncode);
+ if (!detail) throw new Error('小说不存在或已删除');
+ const chapters = opts.chapters || await getChapters(ncode, detail);
+ const from = Math.max(1, opts.from || 1), to = Math.min(chapters.length, opts.to || chapters.length);
+ const list = chapters.slice(from - 1, to);
+ const b = new RikkaSourceRuby.Builder();
+ let lastChapter = '', fail = 0, got = 0, size = 0;
+ for (let i = 0; i < list.length; i++) {
+  const c = list[i];
+  if (onProgress) onProgress(i + 1, list.length, c.title);
+  if (!c.short) {
+   if (c.chapter && c.chapter !== lastChapter) { b.text('■ ' + c.chapter + '\n\n'); lastChapter = c.chapter; }
+   b.text('【' + c.title + '】\n\n');
+  }
+  try {
+   appendBody(parse(await getText(c.url)), b); b.text('\n\n'); got++;
+  } catch (e) { fail++; b.text('（这一话下载失败：' + e.message + '）\n\n'); }
+  size = b.parts.reduce((n, s) => n + s.length, 0);
+  if (size > 950000) { b.text('（篇幅已接近单本上限，后面的话请分批导入）'); break; }
+  if (i < list.length - 1) await sleep(500);
+ }
+ if (!got) throw new Error('一话都没下载成功，请检查网络');
+ const r = b.done();
+ return { title: detail.title, author: detail.writer, desc: detail.story || '', text: r.text.replace(/\n{3,}/g, '\n\n').trim(), ruby: r.ruby, source: 'なろう', ncode: String(detail.ncode || ncode).toLowerCase(), from, to: from + got + fail - 1, failed: fail, native: hasNative() };
 }
 
-return { GENRES, api, ranking, search, getDetail, getChapters, getChapterText, importNovel};
+return { api, ranking, search, getDetail, getChapters, getChapterText, importNovel, getText, hasNative };
 })();
