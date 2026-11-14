@@ -4,7 +4,7 @@
 
 ## 下载
 
-👉 [最新版下载（v3.2.2）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
+👉 [最新版下载（v3.2.3）](https://github.com/SukiSU-rikka/rikka-apk/releases/latest)
 
 或在 [Releases](../../releases) 页面选择历史版本。
 
@@ -27,6 +27,9 @@
 - 📝 JLPT 考试：N5–N1 刷题 / 整卷模考（限时可选）/ AI 出题 / AI 伪真题卷 / 错题本 / 成绩记录 / 听力（设置里打开后显示在底部导航）
 
 ## 更新日志
+
+### v3.2.3
+- versionCode 119，同证书可直接覆盖安装
 
 ### v3.2.2（正式版）
 - 底栏原生液态玻璃转正：v3.2.1 验证版 r2 已在真机验证通过（静止是玻璃、滑动无黑块、整屏与月亮图标不闪），本版代码与验证版一致，仅版本号变更
