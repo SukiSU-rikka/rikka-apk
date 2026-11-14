@@ -1,0 +1,11 @@
+--- MainActivity.smali.orig	2026-11-11 12:48:27.616884973 +0000
++++ MainActivity.smali	2026-11-11 12:48:27.626459167 +0000
+@@ -2910,7 +2910,7 @@
+     .line 93
+     iget-object p1, p0, Lcn/hanayomi/app/MainActivity;->web:Landroid/webkit/WebView;
+ 
+-    invoke-virtual {p0, p1}, Lcn/hanayomi/app/MainActivity;->setContentView(Landroid/view/View;)V
++    invoke-static {p0, p1}, Lcn/hanayomi/glass/GlassHost;->install(Landroid/app/Activity;Landroid/webkit/WebView;)V
+ 
+     .line 94
+     iget-object p1, p0, Lcn/hanayomi/app/MainActivity;->web:Landroid/webkit/WebView;
