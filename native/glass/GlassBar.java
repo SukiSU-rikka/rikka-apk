@@ -83,9 +83,27 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
     long lastFrame = 0;
     float downX;
 
+    /* 切页时机：松手后先让胶囊滑到位，再通知网页切页面。
+     * 网页切页要重建整页 DOM、重新出图，和胶囊动画挤在同一段时间里，WebView 出帧慢会拖住界面线程，胶囊就会一顿一顿。
+     * 胶囊临界阻尼弹簧 (1.0, 1000) 约 0.12 秒走完 90%，所以等它接近目标（或最多 ROUTE_DELAY_MS）再切。 */
+    static final long ROUTE_DELAY_MS = 140;
+    static final float ROUTE_NEAR = 0.12f;      // 胶囊离目标不到 0.12 个 tab 就切
+    static final long PENDING_GUARD_MS = 1200;  // 切页后等网页回报选中项的最长时间
+    int pendingIdx = -1;       // 已选中、等待（或刚刚）通知网页的那一项
+    boolean routeSent = true;  // pendingIdx 是否已经通知网页
+    long pendingAt = 0, sentAt = 0;
+
+    /* 底栏本体只在内容变化时重录（以前每帧都重录一遍，动画时白白占界面线程） */
+    boolean barDirty = true;
+    final RectF recorded = new RectF();
+    boolean recordedGlass = false, recordedVerify = false;
+    final Outline outlineTmp = new Outline();
+    final RectF iconRect = new RectF();
+    PorterDuffColorFilter iconFilter; int iconFilterColor = 0;
+
     /* 玻璃：底栏的玻璃做成 WebView 自己的 RenderEffect（WebView 每帧只画一次，不再双绘） */
     WebView web;
-    String effectSig = "";
+    boolean effectOn = false, effectDark = false; final RectF effectRect = new RectF(Float.NaN, 0, 0, 0);
     final RectF bar = new RectF();
     RenderNode barNode, thumbNode, thumbSample;
     RuntimeShader colorBar, lensBar, maskBar, colorThumb, lensThumb;
@@ -107,20 +125,26 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
 
     /* ================= 状态 ================= */
     void setTabs(List<String> id, List<String> label, List<Bitmap> ic, int act) {
+        if (!ids.equals(id) || !labels.equals(label) || !icons.equals(ic)) barDirty = true;
         ids.clear(); ids.addAll(id); labels.clear(); labels.addAll(label); icons.clear(); icons.addAll(ic);
+        if (pendingIdx >= 0) {
+            if (act == pendingIdx || (routeSent && System.currentTimeMillis() - sentAt > PENDING_GUARD_MS)) pendingIdx = -1;
+            else act = pendingIdx; // 网页还没切过去：保持胶囊在用户选的那一项
+        }
         if (act >= 0 && !placed) { placed = true; active = act; pos.snap(act); }
         else if (act >= 0 && act != active && !dragging) { active = act; pos.target = act; if (!motion) pos.snap(act); kick(); }
         invalidate();
     }
     void setStyle(boolean dark, int primary, int surface, int outline, boolean motion) {
+        if (this.dark != dark || this.primary != primary || this.surface != surface || this.outline != outline) barDirty = true;
         this.dark = dark; this.primary = primary; this.surface = surface; this.outline = outline; this.motion = motion;
         if (!motion) { pos.snap(pos.target); press.snap(press.target); sx.snap(sx.target); sy.snap(sy.target); }
         invalidate();
     }
-    void setShown(boolean v) { if (shown != v) { shown = v; if (!v) { dragging = false; press.snap(0); sx.snap(1); sy.snap(1); } invalidate(); } }
+    void setShown(boolean v) { if (shown != v) { shown = v; if (!v) { dragging = false; press.snap(0); sx.snap(1); sy.snap(1); sendRoute(); } invalidate(); } }
     void setPlacement(float l, float r, float b, float ratio) {
         if (l == cssLeft && r == cssRight && b == cssBottom && ratio == dpr) return; // 没变就不重排，避免无谓重绘
-        cssLeft = l; cssRight = r; cssBottom = b; dpr = ratio; invalidate();
+        cssLeft = l; cssRight = r; cssBottom = b; dpr = ratio; barDirty = true; invalidate();
     }
     boolean glassOn() { return Build.VERSION.SDK_INT >= 33 && GlassHost.mode == GlassHost.MODE_GLASS && web != null; }
 
@@ -129,9 +153,8 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
     void syncWebEffect() {
         if (web == null || Build.VERSION.SDK_INT < 31) return;
         boolean on = glassOn() && shown && !ids.isEmpty() && bar.width() > 1;
-        String sig = on ? bar.left + "," + bar.top + "," + bar.width() + "," + bar.height() + "," + dark : "";
-        if (sig.equals(effectSig)) return;
-        effectSig = sig;
+        if (on == effectOn && (!on || (bar.equals(effectRect) && dark == effectDark))) return; // 没变化：每帧只做这一次比较
+        effectOn = on; effectRect.set(bar); effectDark = dark;
         try {
             if (!on) { web.setRenderEffect(null); return; }
             float w = bar.width(), h = bar.height(), r = blurPx(BLUR);
@@ -210,8 +233,10 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
                 if (!motion) { pos.snap(idx); press.snap(0); sx.snap(1); sy.snap(1); }
                 kick();
                 if (e.getActionMasked() == MotionEvent.ACTION_UP) {
+                    boolean same = idx == active;
                     active = idx; performClick();
-                    if (listener != null) listener.onTab(ids.get(idx));
+                    pendingIdx = idx; routeSent = false; pendingAt = System.currentTimeMillis();
+                    if (same || !motion || !ticking) sendRoute(); // 点的是当前项 / 关了动效：立即切
                 }
                 return true;
         }
@@ -220,13 +245,22 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
     @Override public boolean performClick() { super.performClick(); return true; }
 
     /* ================= 帧循环 ================= */
+    /** 通知网页切到 pendingIdx（只发一次）。 */
+    void sendRoute() {
+        if (routeSent || pendingIdx < 0 || pendingIdx >= ids.size()) return;
+        routeSent = true; sentAt = System.currentTimeMillis();
+        if (listener != null) listener.onTab(ids.get(pendingIdx));
+    }
+
     void kick() { if (!ticking) { ticking = true; lastFrame = 0; Choreographer.getInstance().postFrameCallback(this); } invalidate(); }
     @Override public void doFrame(long now) {
         float dt = lastFrame == 0 ? 1f / 120f : Math.min(0.05f, (now - lastFrame) / 1e9f);
         lastFrame = now;
         boolean a = pos.step(dt) | press.step(dt) | sx.step(dt) | sy.step(dt);
+        if (!routeSent && !dragging && (Math.abs(pos.value - pendingIdx) < ROUTE_NEAR
+                || System.currentTimeMillis() - pendingAt >= ROUTE_DELAY_MS)) sendRoute();
         invalidate();
-        if (a) Choreographer.getInstance().postFrameCallback(this); else ticking = false;
+        if (a) Choreographer.getInstance().postFrameCallback(this); else { ticking = false; sendRoute(); }
     }
 
     /* ================= 绘制 ================= */
@@ -248,11 +282,13 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
 
     /** 底栏本体（玻璃 + 罩色 + 渐变 + 边框 + tab），录进 barNode。 */
     private void recordBar(boolean glass) {
+        if (barNode != null && !barDirty && bar.equals(recorded) && glass == recordedGlass && verify == recordedVerify) return;
+        barDirty = false; recorded.set(bar); recordedGlass = glass; recordedVerify = verify;
         int w = (int) Math.ceil(bar.width()), h = (int) Math.ceil(bar.height());
         if (barNode == null) barNode = new RenderNode("rikka-bar");
         barNode.setPosition(0, 0, w, h);
         barNode.setTranslationX(bar.left); barNode.setTranslationY(bar.top);
-        Outline o = new Outline(); o.setRoundRect(0, 0, w, h, h / 2f); o.setAlpha(1f);
+        Outline o = outlineTmp; o.setRoundRect(0, 0, w, h, h / 2f); o.setAlpha(1f);
         barNode.setOutline(o); barNode.setClipToOutline(true);
         barNode.setElevation(px(SHADOW_DP));
         barNode.setSpotShadowColor(SHADOW_SPOT); barNode.setAmbientShadowColor(SHADOW_AMBIENT);
@@ -307,7 +343,7 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
         thumbNode.setTranslationX(left); thumbNode.setTranslationY(top);
         thumbNode.setPivotX(w / 2f); thumbNode.setPivotY(h / 2f);
         thumbNode.setScaleX(scaleX); thumbNode.setScaleY(scaleY);
-        Outline o = new Outline(); o.setRoundRect(0, 0, w, h, h / 2f);
+        Outline o = outlineTmp; o.setRoundRect(0, 0, w, h, h / 2f); o.setAlpha(1f);
         thumbNode.setOutline(o); thumbNode.setClipToOutline(true);
         RecordingCanvas rc = thumbNode.beginRecording(w, h);
         try {
@@ -385,9 +421,11 @@ final class GlassBar extends View implements Choreographer.FrameCallback {
         float total = is + gap + th, top = cy - Math.min(total, tabH) / 2f;
         Bitmap b = i < icons.size() ? icons.get(i) : null;
         if (b != null) {
-            icon.setColorFilter(new PorterDuffColorFilter(primary, PorterDuff.Mode.SRC_IN));
+            if (iconFilter == null || iconFilterColor != primary) { iconFilter = new PorterDuffColorFilter(primary, PorterDuff.Mode.SRC_IN); iconFilterColor = primary; }
+            icon.setColorFilter(iconFilter);
             float icx = cx, icy = top + is / 2f, s = is * iconScale / 2f;
-            c.drawBitmap(b, null, new RectF(icx - s, icy - s, icx + s, icy + s), icon);
+            iconRect.set(icx - s, icy - s, icx + s, icy + s);
+            c.drawBitmap(b, null, iconRect, icon);
         }
         text.setColor(primary);
         c.drawText(i < labels.size() ? labels.get(i) : "", cx, top + is + gap - fm.ascent, text);

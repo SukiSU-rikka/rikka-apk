@@ -186,10 +186,10 @@ window.RikkaReal=(()=>{
  const ASM_SYSTEM='你是 JLPT 真题整理员。把给你的「一个大题」整理成结构化 JSON。原文来自文字识别（OCR），可能有个别错字、多余空格、断行或选项挤在一行（如「1 あ  2 い」），请只修正明显的识别错误、把选项正确拆开，不要改写内容。题干、选项、文章必须照原文逐字保留（含 [[ ]] 下划线标记、★、（　　）、〔41〕这类空格标记），不得改写、补写或翻译；不要收录「例」题。'
   +'type 从下面选一个：'+TYPE_LIST+'。'
   +'读解、文章の文法、情報検索的文章放在 passages 里，每篇一次，题目用 passage 字段引用其 id；没有文章的题 passage 为空字符串。'
-  +'answer 是正确选项的序号（1 开始）；给了标准答案时以标准答案为准。explain 用中文，优先摘录解析原文里关于这一题的内容（可删去与本题无关的部分），没有解析就写空字符串。'
+  +'answer 是正确选项的序号（1 开始）；给了标准答案时以标准答案为准。explain 用中文，优先摘录解析原文里关于这一题的内容（可删去与本题无关的部分），没有解析就写空字符串。explainAnswer 写解析原文认定的正确选项序号（1 开始；解析没说或没有解析就写 0），不管它和标准答案是否一致都照解析写，不要自己改。'
   +'听力题：q 写这一题最终要回答的提问（日语，从听力原文或试卷里取，例如「男の人はこのあと何をしますか。」；即时应答写「最もよい返事を選んでください。」）；speak 写这一题完整的听力原文（含说话人标记）；选项印在试卷上就用试卷的，只在录音里念的就从听力原文里取；即时应答只有 3 个选项。'
   +'同一段录音有两个提问（如「質問1」「質問2」）时拆成两题，no 写成「2-1」「2-2」，speak 都放完整原文。'
-  +'只返回 JSON：{"type":"","title":"题型名","instr":"大题说明原文","passages":[{"id":"p1","text":""}],"questions":[{"no":"1","q":"","passage":"","choices":["","","",""],"answer":1,"explain":"","speak":""}]}，不要 Markdown。';
+  +'只返回 JSON：{"type":"","title":"题型名","instr":"大题说明原文","passages":[{"id":"p1","text":""}],"questions":[{"no":"1","q":"","passage":"","choices":["","","",""],"answer":1,"explainAnswer":0,"explain":"","speak":""}]}，不要 Markdown。';
  async function readKey(keyText){
   if(!keyText.trim())return{lang:{},listen:{}};
   try{
@@ -298,7 +298,8 @@ window.RikkaReal=(()=>{
    part:'問題'+n,partTitle:title,instr,no,num:true,
    q:String(x.q||'').trim()||(sec==='listening'?'最もよいものを選んでください。':''),
    passage:pid?(passages.get(pid)||pid):'',choices,answer:Number(x.answer)-1,
-   explain:String(x.explain||'').trim(),speakText:String(x.speak||x.speakText||'').trim(),source:set.title+' 真题'
+   explain:String(x.explain||'').trim(),speakText:String(x.speak||x.speakText||'').trim(),source:set.title+' 真题',
+   explainAnswer:Number(x.explainAnswer)>=1&&Number(x.explainAnswer)<=choices.length?Number(x.explainAnswer)-1:undefined
   };
  }
  async function recognize(set,onProgress){
@@ -355,10 +356,16 @@ window.RikkaReal=(()=>{
      format.push({type,n:ok.length,instr,title,listen:kind==='listen',example:{q:ex.q,choices:ex.choices,passage:ex.passage?ex.passage.slice(0,400):''}});
     });
     if(!qs.length)throw new Error('没能整理出题目'+(failed.length?'（失败：'+failed.join('、')+'）':''));
+    // 答案表与解析对账：答案表的数字是从表格图片里读的，读错一列就会整排错位；
+    // 解析里写的答案和答案表不一致的题，让 AI 独立复核后决定改答案还是重写解析，排序题题干坏了的顺便修好
+    report(99,'核对答案与解析…');
+    const fixed=await RikkaExamCheck.reconcile(qs,{real:true});
+    fixed.forEach((q,i)=>{qs[i]=q;});
+    const disputed=fixed.filter(q=>q.checked&&q.checked!=='kumitate').length;
     const order=['vocab','grammar','reading','listening'];
     const sections=order.map(k=>({key:k,qs:qs.filter(q=>q.section===k)})).filter(s=>s.qs.length);
     const out={id:set.id,level:set.level,kind:'real',title:set.title+' 真题',year:set.year,month:set.month,sections,minutes:LV_MIN[set.level],
-     audio:set.audio.map(a=>({uri:a.uri,name:a.name})),format,skipped,failed,created:Date.now(),pages:total};
+     audio:set.audio.map(a=>({uri:a.uri,name:a.name})),format,skipped,failed,checked:disputed,created:Date.now(),pages:total};
     papers.set(set.id,out);
     await DB.restore({meta:[{id:'real-paper:'+set.id,value:out}]});
     report(100,'完成');
